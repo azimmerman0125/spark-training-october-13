@@ -16,4 +16,4 @@ Configuration | Parameter
 
 ### Installing Apache Spark on EC2
 
-Please follow the [installation guide for Ubuntu 20.04](https://github.com/garzoand/spark_training_baseline/blob/master/preparation/install_spark_ubuntu20.md)
+Please follow the [installation guide for Ubuntu 20.04](https://github.com/garzoand/spark-training-october-13/blob/master/preparation/install_spark_ubuntu20.md)
