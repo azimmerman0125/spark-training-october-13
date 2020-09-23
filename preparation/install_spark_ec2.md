@@ -3,7 +3,7 @@
 
 ## Creating the EC2 instance
 
-If you're plan to use an EC2 instance to run Spark during the training, we recommend to use an **Ubuntu Server 20.04** AMI for the instance. Moreover, you should add a bit more storage capacity than the default 8GB, preferred is 62GB. You can go as low as a t2.micro instance, which you can use in the AWS Free Tier program, but we rather recommend a slightly more powerful option, like *m3.medium".
+If you're plan to use an EC2 instance to run Spark during the training, we recommend to use an **Ubuntu Server 20.04** AMI for the instance. Moreover, you should add a bit more storage capacity than the default 8GB, preferred is 62GB. You can go as low as to a t2.micro instance, which you can use in the AWS Free Tier program, but we rather recommend a slightly more powerful option, like *m3.medium".
 
 ### Suggested EC2 configuration
 
