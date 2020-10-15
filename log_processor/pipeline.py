@@ -56,7 +56,8 @@ class LogProcessorPipeline:
         # access_log_df -> alarms: notification service (~ json file stored in a folder)
 
         access_log_df = self.create_access_log_df(input_rdd)
-        stat_df = None
+        access_log_df.cache()
+        stat_df = self.create_stat_df(access_log_df)
         alarm_df = None
         
         return (access_log_df, stat_df, alarm_df)
@@ -80,5 +81,14 @@ class LogProcessorPipeline:
         
         return df
 
+    def create_stat_df(self, access_log_df):
+        access_log_df.createOrReplaceTempView('access_log_temp')
+        stat_df = self.spark.sql("""
+        SELECT date, hour, method, resource, response, count(1) as access_count
+        FROM access_log_temp
+        GROUP BY date, hour, method, resource, response
+        """)
+        return stat_df
 
-
+    def create_alarm_df(self, access_log_df):
+        return None

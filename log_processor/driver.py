@@ -9,7 +9,7 @@ INPUT_FOLDER = 'sample_data/unit-test2.log'
 OUTPUT_FOLDER = 'output'
 
 # Constructing the Spark Context ...
-sc = utils.gen_spark_context(local=False)
+sc = utils.gen_spark_context(local=True)
 spark = SparkSession(sc)
 
 # Handling input
@@ -24,18 +24,24 @@ pipeline = pipeline.LogProcessorPipeline(sc, spark)
 log_df.write \
     .format('parquet') \
     .mode('overwrite') \
-    .partitionBy('') # based time
+    .partitionBy('date') \
     .save(OUTPUT_FOLDER)
-    # .saveAsTable('table_name')
+   # .saveAsTable('table_name')
 
 stat_df.write \
     .format('jdbc') \
-    # ...
+    .option('url', 'jdbc:mysql://localhost/spark_test') \
+    .option('dbtable', 'log_report') \
+    .option('user', 'spark') \
+    .option('driver', 'com.mysql.jdbc.Driver') \
+    .option('password', 'spark123') \
+    .option('numPartition', '1') \
+    .save()
 
-alarm_df.write \
-    .format('json') \
-    .mode('overwrite') \
-    .option('compression', 'gzip') \
-    .save('alarms')
+#alarm_df.write \
+#    .format('json') \
+#    .mode('overwrite') \
+#    .option('compression', 'gzip') \
+#    .save('alarms')
 
 sc.stop()
