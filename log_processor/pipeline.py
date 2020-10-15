@@ -39,9 +39,15 @@ def get_error_code(str):
 def process_access_log_line(log_line):
     header = get_header(log_line)
     ts_str = get_timestamp(log_line)
-    td = datetime.datetime.strptime(ts_str, "%d/%b/%Y:%H:%M:%S %z")
-    date_str = '{}-{}-{}'.format(td.year, td.month, td.day)   
-    return (get_ip(log_line), ts_str, date_str, td.hour, header[0], header[1], header[2], get_error_code(log_line))
+    date_str = "1980-01-01"
+    hour = "12"
+    try:
+        td = datetime.datetime.strptime(ts_str, "%d/%b/%Y:%H:%M:%S %z")
+        date_str = '{}-{}-{}'.format(td.year, td.month, td.day)   
+        hour = td.hour
+    except ValueError:
+        pass
+    return (get_ip(log_line), ts_str, date_str, hour, header[0], header[1], header[2], get_error_code(log_line))
 
 
 class LogProcessorPipeline:
@@ -57,6 +63,7 @@ class LogProcessorPipeline:
 
         access_log_df = self.create_access_log_df(input_rdd)
         access_log_df.cache()
+        # access_log_df.persist(...)
         stat_df = self.create_stat_df(access_log_df)
         alarm_df = None
         
@@ -91,4 +98,7 @@ class LogProcessorPipeline:
         return stat_df
 
     def create_alarm_df(self, access_log_df):
+        # find those resources in the table which had non 200 response code in any date and hour
+        # group by date, hour ... where the count of non 200 is greater than 500
+        
         return None
