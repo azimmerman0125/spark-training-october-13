@@ -49,6 +49,9 @@ def process_access_log_line(log_line):
         pass
     return (get_ip(log_line), ts_str, date_str, hour, header[0], header[1], header[2], get_error_code(log_line))
 
+def process_ip_list(ip_line):
+    # This should be more error prone, sorry about that!    
+    return (ip_line.split(':')[1].replace(' ', ''),)
 
 class LogProcessorPipeline:
 
@@ -56,18 +59,24 @@ class LogProcessorPipeline:
         self.sc = sc
         self.spark = spark
 
-    def build_pipeline(self, input_rdd):
+    def build_pipeline(self, input_rdd, evil_ip_list_rdd):
+        
         # input_rdd -> access_log_df -> data lake (in PQ) to query raw data when the incident happens
         # access_log_df -> stat_df -> DWH for daily/hourly ~ real-time querying
         # access_log_df -> alarms: notification service (~ json file stored in a folder)
+        # access_log.join(ip_list).count: how many requests are coming from malicious IP addresses?
 
         access_log_df = self.create_access_log_df(input_rdd)
         access_log_df.cache()
         # access_log_df.persist(...)
+        evil_ip_df = self.create_evil_ip_df(evil_ip_list_rdd)
+        evil_ip_df.cache()
+       
         stat_df = self.create_stat_df(access_log_df)
-        alarm_df = None
+        alarm_df = self.create_alarm_df(access_log_df)
+        malicious_activity_df = self.calc_malicious_activity(access_log_df, evil_ip_df)
         
-        return (access_log_df, stat_df, alarm_df)
+        return (access_log_df, stat_df, alarm_df, malicious_activity_df)
 
     def create_access_log_df(self, rdd):
         self.access_log_schema = StructType([
@@ -88,6 +97,10 @@ class LogProcessorPipeline:
         
         return df
 
+    def create_evil_ip_df(self, evil_ip_list_rdd):
+        #print(evil_ip_list_rdd.map(process_ip_list).collect())
+        return evil_ip_list_rdd.map(process_ip_list).toDF(['evil_ip'])
+
     def create_stat_df(self, access_log_df):
         access_log_df.createOrReplaceTempView('access_log_temp')
         stat_df = self.spark.sql("""
@@ -98,7 +111,24 @@ class LogProcessorPipeline:
         return stat_df
 
     def create_alarm_df(self, access_log_df):
-        # find those resources in the table which had non 200 response code in any date and hour
-        # group by date, hour ... where the count of non 200 is greater than 500
-        
-        return None
+        access_log_df.createOrReplaceTempView('access_log_temp')
+        report_df = self.spark.sql("""
+        SELECT resource, response, count(1) as error_count
+        FROM access_log_temp
+        WHERE response != 200
+        GROUP BY resource, response
+        HAVING error_count > 1000
+        ORDER BY error_count DESC
+        """)
+        return report_df
+
+    def calc_malicious_activity(self, access_log_df, evil_ip_df):
+        joined_df = access_log_df.join(evil_ip_df.hint('broadcast'), access_log_df.ip == evil_ip_df.evil_ip, 'inner')
+        joined_df.createOrReplaceTempView('evil_ip_view')
+        malicious_activity_df = self.spark.sql("""
+        SELECT evil_ip, count(1) as num_requests
+        FROM evil_ip_view
+        GROUP BY evil_ip
+        ORDER BY num_requests DESC
+        """)
+        return malicious_activity_df
